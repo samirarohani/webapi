@@ -3,8 +3,8 @@
 $(document).ready(function () {
 
     $("button").click(function () {
-        getBanners('http://185.55.226.152/r6Api/api/AdDispatcher/AdList', 'div[data-adpanel=true]', [
-            {
+        getBanners('http://185.55.226.152/r6Api/api/AdDispatcher/AdList', 'div[data-adpanel=true]',
+            [{
                 "AdKey": "a35c8081-1d85-4ca9-84aa-f0103651ae94",
                 "SessionID": 71443,
                 "BannerURL": "http://YourSite/BannerCDN/b1.jpg",
@@ -112,24 +112,34 @@ $(document).ready(function () {
                 "ObjectID": "onjcontainer9",
                 "Description": "Description For This banner would be something usefull in future."
             }
-        ])
+            ])
     })
 })
 
 function getBanners(url, targetElement, jsonresponse) {
-    creatArrayThatdonthaveDelayTime(targetElement)                  //creat array of elment that dosnt have Delay Time
+    creatArrayThatdonthaveDelayTime(targetElement)
         .then(function (arr) {
-            getData(url, arr, targetElement, jsonresponse)           //send request and get data 
-                .then(function (delayArr) {
-                    setDelayArr(delayArr)                              //remove repeated elements
+            getData(url, arr)
+                .done(function (data) {
+                    processeDataOnsuccesState(data)
+                        .then(function (delayArr) {
+                            setDelayArr(delayArr)
+                                .then(function (setDelayArr) {
+                                    timeOut(targetElement, url, setDelayArr, jsonresponse)
+                                })
+                        })
                 })
-                .then(function (setDelayArr) {
-                    timeOut(targetElement, url, setDelayArr)           //run timeOut function for send request in specific times
+                .fail(function () {
+                    processeDataOnFailState(targetElement, jsonresponse)
+                        .then(function (delayArr) {
+                            setDelayArr(delayArr)
+                                .then(function (setDelayArr) {
+                                    timeOut(targetElement, url, setDelayArr, jsonresponse)
+                                })
+                        })
                 })
         })
-
 }
-
 
 
 function creatArrayThatdonthaveDelayTime(targetElement) {
@@ -139,7 +149,7 @@ function creatArrayThatdonthaveDelayTime(targetElement) {
         var delaytime;
         arr.push({ "SessionID": localStorage.getItem("SessionID") });//get sessionId if doesnt exist return null
         $(targetElement).each(function () {
-            delaytime = $(this).attr("delaytime")
+            delaytime = $(this).attr("data-delayinseconds")
             if (delaytime === "0") {
                 arr.push({
 
@@ -158,37 +168,42 @@ function creatArrayThatdonthaveDelayTime(targetElement) {
 }
 
 
-function getData(url, arr, targetElement, jsonresponse) {
+function getData(url, arr) {
     return $.ajax({
         type: 'POST',
         dataType: "json",
         contentType: "application/json",
         url: url,
         data: JSON.stringify(arr),
-    }).done(function (data) { processeDataOnsuccesState(data) })
-        .fail(function () { processeDataOnFailState(targetElement, jsonresponse) })
+
+    })
 }
 
 
 
-function processeDataOnsuccesState(jsonresponse, targetElement) {
+
+
+
+
+function processeDataOnsuccesState(targetElement, jsonresponse) {
     var response = $.parseJSON(JSON.stringify(jsonresponse))
     var delayArr = new Array;
+    const DELAY_RATE = 1000;
     return new Promise(function (resolve) {
         response.forEach(function (response) {
             $(targetElement).each(function () {
                 if ($(this).attr("id") == response.ObjectID) {
                     $(this).empty();
                     $(this).append("<a href=" + response.TargetURL + "><span>" + response.BannerURL + "</span></a>")
-                    $(this).attr("delaytime", " ")
-                    $(this).attr("delaytime", response.DelaySeconds)
+                    $(this).attr("data-delayinseconds", " ")
+                    $(this).attr("data-delayinseconds", response.DelaySeconds)
                     delayArr.push(response.DelaySeconds)
                     localStorage.setItem("SessionID", response.SessionID)
                 }
             })
         })
-       
-        return resolve(delayArr * 1000)
+
+        return resolve(delayArr * DELAY_RATE)
     })
 
 }
@@ -199,31 +214,36 @@ function processeDataOnsuccesState(jsonresponse, targetElement) {
 function processeDataOnFailState(targetElement, jsonresponse) {
     var response = $.parseJSON(JSON.stringify(jsonresponse))
     var delayArr = new Array;
+    const DELAY_RATE = 1000;
     return new Promise(function (resolve) {
         response.forEach(function (response) {
             $(targetElement).each(function () {
                 if ($(this).attr("id") == response.ObjectID) {
                     $(this).empty();
                     $(this).append("<a href=" + response.TargetURL + "><span>" + response.BannerURL + "</span></a>")
-                    $(this).attr("delaytime", " ")
-                    $(this).attr("delaytime", response.DelaySeconds)
-                    delayArr.push(response.DelaySeconds)
+                    $(this).attr("data-delayinseconds", " ")
+                    $(this).attr("data-delayinseconds", response.DelaySeconds)
+                    delayArr.push(response.DelaySeconds * DELAY_RATE)
                     localStorage.setItem("SessionID", response.SessionID)
                 }
 
 
             })
         })
-       
-        return resolve(delayArr * 1000)
+        return resolve(delayArr)
     })
 
 }
 
+
+
+
+
 function setDelayArr(delayArr) {
+ 
     return new Promise(function (resolve) {
         if (delayArr) {
-            var setDelayArr = [];
+            var setDelayArr = new Array();
             $.each(delayArr, function (i, el) {
                 if ($.inArray(el, setDelayArr) === -1) setDelayArr.push(el);
             });
@@ -235,15 +255,15 @@ function setDelayArr(delayArr) {
     })
 }
 
-setInterval(function () { reducetime() }, 1000)
+setInterval(function () { reducetime('div[data-adpanel=true]') }, 1000)
 
 function reducetime(targetElement) {
     var delaytime;
     $(targetElement).each(function () {
-        delaytime = $(this).attr("delaytime")
+        delaytime = $(this).attr("data-delayinseconds")
         if (delaytime !== "0") {
             delaytime -= 1
-            $(this).attr("delaytime", delaytime)
+            $(this).attr("data-delayinseconds", delaytime)
         }
 
     })
@@ -252,15 +272,15 @@ function reducetime(targetElement) {
 
 
 
-function timeOut(targetElement, url, delayArr) {
+function timeOut(targetElement, url, delayArr, jsonresponse) {
+    console.log(delayArr)
     delayArr.forEach(function (array) {
         setTimeout(function () {
-            getBanners(url, targetElement)
-            console.log(Date() + array)
+            getBanners(url, targetElement, jsonresponse)
+            console.log(Date() + "in" + array + "seconds")
         }, array)
     })
 
 }
-
 
 
