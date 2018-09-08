@@ -255,19 +255,7 @@ function setDelayArr(delayArr) {
     })
 }
 
-setInterval(function () { reducetime('div[data-adpanel=true]') }, 1000)
 
-function reducetime(targetElement) {
-    var delaytime;
-    $(targetElement).each(function () {
-        delaytime = $(this).attr("data-delayinseconds")
-        if (delaytime !== "0") {
-            delaytime -= 1
-            $(this).attr("data-delayinseconds", delaytime)
-        }
-
-    })
-}
 
 
 
@@ -276,11 +264,19 @@ function timeOut(targetElement, url, delayArr, jsonresponse) {
     console.log(delayArr)
     delayArr.forEach(function (array) {
         setTimeout(function () {
+
+            $(targetElement).each(function () {
+                delaytime = $(this).attr("data-delayinseconds")
+                if (delaytime == array) {
+                   
+                    $(this).attr("data-delayinseconds", 0)
+                }})
             getBanners(url, targetElement, jsonresponse)
             console.log(Date() + "in" + array + "seconds")
         }, array)
     })
 
 }
+
 
 
